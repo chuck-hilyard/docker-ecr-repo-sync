@@ -1,24 +1,19 @@
 # Project Title
 
-One Paragraph of project description goes here
+AWS ECR Watcher and Container Restarter
 
 ** borrowed from https://github.com/foxylion/docker-jenkins
 
 ## Getting Started
 
-This repo is used by docker during docker build and docker run.  See this.Dockerfile 
+This docker image executes a python function to restart containers when it finds the ecr image has been updated
 
 ### Prerequisites
 
-* Docker installed on your local dev machine
-* plugins.txt lists all the extra plugins to be installed during runtime
-* repos.txt lists all the github repos added as projects to jenkins
-* .xml files are used by the general jenkins configuration
 
 ### Installing
 
-'docker build -t jenkins-master .'
-'docker run -d -p 8080:8080 -p 50000:50000 jenkins-agent'
+'docker build -t ecr-watcher .'
 
 ## Running the tests
 
