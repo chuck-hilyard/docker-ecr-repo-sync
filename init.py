@@ -44,10 +44,26 @@ def scrape_consul_for_deployed_apps():
       ecr_repo = "http://consul.user1.media.dev.usa.reachlocalservices.com:8500/v1/kv/{}/config/ecr_repo?raw".format(project_name)
       response_ecr_repo = requests.get(ecr_repo)
       test3 = response_ecr_repo.status_code
-      ecr_repo = response_github_url.text
+      ecr_repo = response_ecr_repo.text
+      if ecr_repo == True:
+        ecr_image_digest = "http://consul.user1.media.dev.usa.reachlocalservices.com:8500/v1/kv/{}/config/ecr_image_digest?raw".format(project_name)
+        response_ecr_image_digest = requests.get(ecr_image_digest)
+        test4 = response_ecr_image_digest.status_code
+        ecr_image_digest = response_ecr_image_digest.text
 
       if test1 == 200 and test2 == 200 and test3 == 200:
         print("{} has the right anatomy".format(project_name))
+
+def whats_in_ecr():
+  # compare the image digest in consul as it relates to ecr:tag
+  # if the ecr_image_digest var is empty, restart the containers
+  # if the ecr_image_digest is different than consul, restart the containers
+  pass
+
+def restart_containers():
+  pass
+  # try the container restart
+  # if it succeeds update the imagedigest in consul
 
 def is_consul_up():
   print("is consul up?")
