@@ -1,16 +1,11 @@
 # this is called by docker run
 #
-# starts jenkins
-# installs plugins
-# adds github based projects to jenkins/jobs
 
 import http.client
 import boto3
-import jenkins
 import json
 import os
 import requests
-import socket
 import subprocess
 import time
 
@@ -21,44 +16,57 @@ def install_software():
   time.sleep(30)
   subprocess.run(["pip3", "install", "consul_kv"])
 
-def scrape_consul_for_deployed_apps():
+def get_deployed_apps_from_consul():
   print("scraping consul for deployed apps")
   url = 'http://consul.user1.media.dev.usa.reachlocalservices.com:8500/v1/kv/?keys&separator=/'
   response = requests.get(url)
   toplevel_keys_json = json.loads(response.text)
+  return toplevel_keys_json
 
-  # for each key found verify that it has a github repo and branch configuration setting, otherwise it's
-  # probably not an app that we should deploy w/ jenkins
+def retrieve_app_configs_from_consul(toplevel_keys_json):
+  # for each key found verify that it has a github repo and branch configuration setting - that's how we know it's a deployed app
+  local_dic = {}
   for x in toplevel_keys_json:
-      project_name = x.strip('/')
-      branch_url = "http://consul.user1.media.dev.usa.reachlocalservices.com:8500/v1/kv/{}/config/branch?raw".format(project_name)
-      response_branch_url = requests.get(branch_url)
-      test1 = response_branch_url.status_code
-      branch = response_branch_url.text
+    project_name = x.strip('/')
+    print("pulling configs for {}".format(project_name))
+    branch_url = "http://consul.user1.media.dev.usa.reachlocalservices.com:8500/v1/kv/{}/config/branch?raw".format(project_name)
+    response_branch_url = requests.get(branch_url)
+    test1 = response_branch_url.status_code
+    branch = response_branch_url.text
 
-      github_url = "http://consul.user1.media.dev.usa.reachlocalservices.com:8500/v1/kv/{}/config/github_repo?raw".format(project_name)
-      response_github_url = requests.get(github_url)
-      test2 = response_github_url.status_code
-      github_repo = response_github_url.text
+    github_url = "http://consul.user1.media.dev.usa.reachlocalservices.com:8500/v1/kv/{}/config/github_repo?raw".format(project_name)
+    response_github_url = requests.get(github_url)
+    test2 = response_github_url.status_code
+    github_repo = response_github_url.text
 
-      ecr_repo = "http://consul.user1.media.dev.usa.reachlocalservices.com:8500/v1/kv/{}/config/ecr_repo?raw".format(project_name)
-      response_ecr_repo = requests.get(ecr_repo)
-      test3 = response_ecr_repo.status_code
-      ecr_repo = response_ecr_repo.text
-      if ecr_repo == True:
-        ecr_image_digest = "http://consul.user1.media.dev.usa.reachlocalservices.com:8500/v1/kv/{}/config/ecr_image_digest?raw".format(project_name)
-        response_ecr_image_digest = requests.get(ecr_image_digest)
-        test4 = response_ecr_image_digest.status_code
+    ecr_repo_url = "http://consul.user1.media.dev.usa.reachlocalservices.com:8500/v1/kv/{}/config/ecr_repo?raw".format(project_name)
+    response_ecr_repo = requests.get(ecr_repo_url)
+    test3 = response_ecr_repo.status_code
+    ecr_repo = response_ecr_repo.text
+    if ecr_repo:
+      ecr_image_digest_url = "http://consul.user1.media.dev.usa.reachlocalservices.com:8500/v1/kv/{}/config/ecr_image_digest?raw".format(project_name)
+      response_ecr_image_digest = requests.get(ecr_image_digest_url)
+      if response_ecr_image_digest.status_code == 200:
         ecr_image_digest = response_ecr_image_digest.text
+      else:
+        ecr_image_digest = response_ecr_image_digest.status_code
 
-      if test1 == 200 and test2 == 200 and test3 == 200:
-        print("{} has the right anatomy".format(project_name))
+    if test1 == 200 and test2 == 200 and test3 == 200:
+      print("{} has the right anatomy for a deployed app".format(project_name))
+      local_dic.update({ project_name: [branch, github_repo, ecr_repo, ecr_image_digest] })
+    else:
+      print("{} is NOT a deployed app".format(project_name))
+  return local_dic
 
-def whats_in_ecr():
+def whats_in_ecr(project_name, branch_url, github_url, ecr_repo, ecr_image_digest):
   # compare the image digest in consul as it relates to ecr:tag
   # if the ecr_image_digest var is empty, restart the containers
   # if the ecr_image_digest is different than consul, restart the containers
-  pass
+  print("checking ecr")
+  client = boto3.client('ecr')
+  print("ecr image digest: ", ecr_image_digest)
+  response = client.describe_images(registryId='762858336698', repositoryName='madmin-client-user1-media-dev-usa-reachlocalservices-com', imageIds=[{ 'imageDigest': ecr_image_digest, 'imageTag': branch_url}])
+  print("response.txt", response)
 
 def restart_containers():
   pass
@@ -75,13 +83,18 @@ def main():
     status = is_consul_up()
     if status == True:
       print("consul is up")
-      scrape_consul_for_deployed_apps()
+      app_list = get_deployed_apps_from_consul()
+      print("the following apps are deployed: ", app_list)
+      app_config_dict = {}
+      app_config_dict.update(retrieve_app_configs_from_consul(app_list))
+      for k,v in app_config_dict.items():
+        print("{}-{}".format(k,v))
     else:
-      print("consul is DOWN...or i can't get to it")
+      print("i can't get to consul")
     print("sleeping for 60")
     time.sleep(60)
 
 
 if __name__ == '__main__':
-  install_software()
+  #install_software()
   main()
