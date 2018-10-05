@@ -29,10 +29,14 @@ def retrieve_app_configs_from_consul(toplevel_keys_json):
   local_dict = {}
   for x in toplevel_keys_json:
     project_name = x.strip('/')
-    print("pulling configs for {}".format(project_name))
+    print("[{}] pulling consul configs".format(project_name))
     aws_account_number_url = "http://consul.user1.media.dev.usa.reachlocalservices.com:8500/v1/kv/{}/config/AWS_ACCOUNT_NUMBER?raw".format(project_name)
     response_aws_account_number = requests.get(aws_account_number_url)
     aws_account_number = response_aws_account_number.text
+
+    ecs_cluster_url = "http://consul.user1.media.dev.usa.reachlocalservices.com:8500/v1/kv/{}/config/ecs_cluster?raw".format(project_name)
+    response_ecs_cluster = requests.get(ecs_cluster_url)
+    ecs_cluster = response_ecs_cluster.text
 
     branch_url = "http://consul.user1.media.dev.usa.reachlocalservices.com:8500/v1/kv/{}/config/branch?raw".format(project_name)
     response_branch_url = requests.get(branch_url)
@@ -60,45 +64,61 @@ def retrieve_app_configs_from_consul(toplevel_keys_json):
         ecr_image_digest = 404
 
     if test1 == 200 and test2 == 200 and test3 == 200:
-      print("{} has the right anatomy for a deployed app".format(project_name))
-      local_dict.update({ project_name: [aws_account_number, branch, github_repo, ecr_repo, ecr_image_digest] })
+      print("[{}] is anatomically correct".format(project_name))
+      local_dict.update({ project_name: [aws_account_number, ecs_cluster, branch, github_repo, ecr_repo, ecr_image_digest] })
     else:
-      print("{} is NOT a deployed app".format(project_name))
+      print("[{}] is NOT a deployed app".format(project_name))
   return local_dict
 
-# maybe we'll use this
 def whats_in_ecr(app_list, app_list_dict):
-  # 1) if the consul:ecr_image_digest is empty AND the aws_ecr_image_digest is empty log a dumb condition
-  # 2) if the consul:ecr_image_digest var is empty, restart the containers and populate the consul:ecr_image_digest
-  # 3) if the consul:ecr_image_digest is populated compare it against the consul:ecr_image_digest.  if they differ, restart
-  # the containers and update the consul:ecr_image_digest w/ the aws_ecr_image_digest
-  # 4) if the consul:ecr_image_digest is populated but the aws:ecr_image_digest is empty do nothing
-  # if the consul:ecr_image_digest is identical to aws_ecr_image_digest do nothing
-  print("pull imageDigest from ecr")
   client = boto3.client('ecr')
-  for k, v in app_list_dict.items():
-    print("KEY:{} VALUE:{}".format(k, v))
-    if app_list_dict[k][4] != 404:
-      #response = client.describe_images(registryId=app_list_dict[k][0], repositoryName=app_list_dict[k][3], imageIds=[{ 'imageDigest': app_list_dict[k][4], 'imageTag': app_list_dict[k][1]}])
-      response = client.describe_images(registryId=app_list_dict[k][0], repositoryName=app_list_dict[k][3], imageIds=[{'imageTag': app_list_dict[k][1]}])
-      aws_ecr_image_digest = response['imageDetails'][0]['imageDigest']
-      print("aws ecr image digest: ", aws_ecr_image_digest)
-      app_list_dict[k].append(aws_ecr_image_digest)
-      print("APP LIST DICT", app_list_dict)
-    else:
-      print("aws_ecr_image_digest is empty")
-      app_list_dict[k].append('empty')
-
-def exec_container_restart(app_list_dict):
-  print("determine container restarts")
   for k,v in app_list_dict.items():
-    print("APP:{}".format(k))
-    print(v)
+    print("[{}] pull imageDigest from ecr".format(k))
+    try:
+      response = client.describe_images(registryId=app_list_dict[k][0], repositoryName=app_list_dict[k][4], imageIds=[{'imageTag': app_list_dict[k][2]}])
+    except:
+      print("[{}] something went wrong w/ the ecr image lookup".format(k))
+      aws_ecr_image_digest = ""
+      app_list_dict[k].append(aws_ecr_image_digest)
+    aws_ecr_image_digest = response['imageDetails'][0]['imageDigest']
+    app_list_dict[k].append(aws_ecr_image_digest)
 
-def restart_containers():
-  pass
-  # try the container restart
-  # if it succeeds update the imagedigest in consul
+def container_restart_logic(app_list_dict):
+  for k,v in app_list_dict.items():
+    print("[{}] container restart logic".format(k))
+    if not app_list_dict[k][6]:
+      print("[{}] aws ecr_image_digest is missing, skipping".format(k))
+      continue
+    if app_list_dict[k][5] == app_list_dict[k][6]:
+      print("[{}] aws ecr_image_digest is identical to consul's ecr_image_digest".format(k))
+      continue
+    if app_list_dict[k][5] != app_list_dict[k][6]:
+      print("[{}] aws ecr_image_digest differs from consul's ecr_image_digest".format(k))
+      container_restart_status = restart_containers(app_list_dict[k])
+      for status in container_restart_status:
+        if status != 200:
+          print("[{}] one container didn't properly restart, not updating consul".format(k))
+        else:
+          print("[{}] all containers successfully restarted, updating consul".format(k))
+          update_consul_ecr_image_digest(app_list_dict)
+
+def update_consul_ecr_image_digest(app_list_dict):
+  for k,v in app_list_dict.items():
+    print("[{}] updating consul ecr_image_digest".format(k))
+    url = "http://consul.user1.media.dev.usa.reachlocalservices.com:8500/v1/kv/{}/config/ecr_image_digest".format(k)
+    response = requests.put(url, data=app_list_dict[k][6])
+    print("CONSUL RESPONSE: ", response.status_code, response.reason)
+
+def restart_containers(something):
+  print("[{}] restarting containers".format(something[4]))
+  client = boto3.client('ecs')
+  tasks = client.list_tasks(cluster=something[1], serviceName=something[4])
+  container_restart_status = []
+  for task in tasks['taskArns']:
+    print("[{}] {}".format(something[4], task))
+    response = client.stop_task(cluster=something[1], task=task, reason="lambda:docker-ecr-watcher restart due to state change")
+    container_restart_status.append(response['ResponseMetadata']['HTTPStatusCode'])
+  return container_restart_status
 
 def is_consul_up():
   print("is consul up?")
@@ -114,7 +134,7 @@ def main():
       print("the following apps are deployed: ", app_list)
       app_list_dict.update(retrieve_app_configs_from_consul(app_list))
       whats_in_ecr(app_list, app_list_dict)
-      exec_container_restart(app_list_dict)
+      container_restart_logic(app_list_dict)
     else:
       print("i can't get to consul")
     print("sleeping for 60")
