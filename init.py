@@ -146,6 +146,6 @@ def main():
 
 
 if __name__ == '__main__':
-  #install_software()
+  install_software()
   app_list_dict = {}
   main()
