@@ -1,6 +1,6 @@
 FROM ubuntu:latest
 
-RUN apt-get update && apt-get upgrade -y && DEBIAN_FRONTEND=noninteractive apt-get install -y sudo python3 python3-pip python3-jenkins python3-boto3 
+RUN apt-get update && apt-get upgrade -y && DEBIAN_FRONTEND=noninteractive apt-get install -y sudo python3 python3-pip python3-jenkins python3-boto3 jq 
 
 RUN useradd -m -s /bin/bash ecrwatcher
 

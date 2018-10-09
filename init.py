@@ -14,8 +14,10 @@ def install_software():
   # install build/test software
   # TODO: make sure the previous install is done prior to moving on
   subprocess.run(["sudo", "DEBIAN_FRONTEND=noninteractive", "apt-get", "install", "-yq", "awscli"])
-  time.sleep(30)
+  time.sleep(15)
   subprocess.run(["pip3", "install", "consul_kv"])
+  time.sleep(15)
+  #subprocess.run(["curl", "-k", "--header", "\"X-Vault-Token:${var.VAULTKEY}\"", "--request", "GET", "https://10.233.136.68:8200/v1/secret/data/dev/usa/cert/aws-credentials", "|jq -r", '.data.key', ">>", "/var/jenkins_home/.aws/credentials"])
 
 def get_deployed_apps_from_consul():
   print("scraping consul for deployed apps")
