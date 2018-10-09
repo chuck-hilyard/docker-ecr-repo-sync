@@ -17,7 +17,7 @@ def install_software():
   time.sleep(15)
   subprocess.run(["pip3", "install", "consul_kv"])
   time.sleep(15)
-  #subprocess.run(["curl", "-k", "--header", "\"X-Vault-Token:${var.VAULTKEY}\"", "--request", "GET", "https://10.233.136.68:8200/v1/secret/data/dev/usa/cert/aws-credentials", "|jq -r", '.data.key', ">>", "/var/jenkins_home/.aws/credentials"])
+  subprocess.run(["curl", "-k", "--header", "\"X-Vault-Token:${var.VAULTKEY}\"", "--request", "GET", "https://10.233.136.68:8200/v1/secret/data/dev/usa/cert/aws-credentials", "|jq -r", "\'.data.key\'", ">>", "/home/ecrwatcher/.aws/credentials"])
 
 def get_deployed_apps_from_consul():
   print("scraping consul for deployed apps")
