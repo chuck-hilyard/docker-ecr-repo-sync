@@ -40,6 +40,10 @@ def retrieve_app_configs_from_consul(toplevel_keys_json):
     response_ecs_cluster = requests.get(ecs_cluster_url)
     ecs_cluster = response_ecs_cluster.text
 
+    aws_region_url = "http://consul:8500/v1/kv/{}/config/REGION?raw".format(project_name)
+    response_aws_region = requests.get(aws_region_url)
+    aws_region = response_aws_region.text
+
     branch_url = "http://consul:8500/v1/kv/{}/config/branch?raw".format(project_name)
     response_branch_url = requests.get(branch_url)
     test1 = response_branch_url.status_code
@@ -150,4 +154,5 @@ def main():
 if __name__ == '__main__':
   install_software()
   app_list_dict = {}
+  region_name = ""
   main()
