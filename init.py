@@ -3,6 +3,7 @@
 
 import http.client
 import boto3
+import botocore
 import json
 import os
 import re
