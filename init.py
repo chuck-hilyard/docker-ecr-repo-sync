@@ -122,15 +122,16 @@ def update_consul_ecr_image_digest(app_list_dict, key):
 
 def restart_containers(something):
   print("[{}] restarting containers".format(something[4]))
+  container_restart_status = []
   client = boto3.client('ecs', region_name='us-west-2')
   try:
     tasks = client.list_tasks(cluster=something[1], serviceName=something[4])
   except client.exceptions.ServiceNotFoundException as e:
     print("ignoring exception {}", e)
-  container_restart_status = []
+    return container_restart_status
   for task in tasks['taskArns']:
     print("[{}] {}".format(something[4], task))
-    response = client.stop_task(cluster=something[1], task=task, reason="lambda:docker-ecr-watcher restart due to state change")
+    response = client.stop_task(cluster=something[1], task=task, reason="docker-ecr-watcher restart due to state change")
     container_restart_status.append(response['ResponseMetadata']['HTTPStatusCode'])
   return container_restart_status
 
