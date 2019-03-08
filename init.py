@@ -27,7 +27,7 @@ def get_deployed_apps_from_consul():
   return toplevel_keys_json
 
 def retrieve_app_configs_from_consul(toplevel_keys_json):
-  # for each key found verify that it has a github repo and branch configuration setting - that's how we know it's a deployed app
+  # for each key found verify that it has a github repo AND branch configuration setting - that's how we know it's a deployed app
   local_dict = {}
   for x in toplevel_keys_json:
     project_name = x.strip('/')
@@ -122,7 +122,10 @@ def update_consul_ecr_image_digest(app_list_dict, key):
 def restart_containers(something):
   print("[{}] restarting containers".format(something[4]))
   client = boto3.client('ecs', region_name='us-west-2')
-  tasks = client.list_tasks(cluster=something[1], serviceName=something[4])
+  try:
+    tasks = client.list_tasks(cluster=something[1], serviceName=something[4])
+  except botocore.errorfactory.ServiceNotFoundException as e:
+    print("ignoring exception {}", e)
   container_restart_status = []
   for task in tasks['taskArns']:
     print("[{}] {}".format(something[4], task))
@@ -141,7 +144,7 @@ def main():
     if status == True:
       print("consul is up")
       app_list = get_deployed_apps_from_consul()
-      print("the following apps are deployed: ", app_list)
+      print("the following apps MAY be deployed: ", app_list)
       app_list_dict.update(retrieve_app_configs_from_consul(app_list))
       whats_in_ecr(app_list, app_list_dict)
       container_restart_logic(app_list_dict)

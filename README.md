@@ -1,6 +1,6 @@
 # Project Title
 
-AWS ECR Watcher and Container Restarter
+AWS ECR Repo Sync and Container Restarterer
 
 ** borrowed from https://github.com/foxylion/docker-jenkins
 
@@ -13,7 +13,7 @@ This docker image executes a python function to restart containers when it finds
 
 ### Installing
 
-'docker build -t ecr-watcher .'
+'docker build -t ecr-repo-sync .'
 
 ## Running the tests
 
