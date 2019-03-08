@@ -125,7 +125,7 @@ def restart_containers(something):
   client = boto3.client('ecs', region_name='us-west-2')
   try:
     tasks = client.list_tasks(cluster=something[1], serviceName=something[4])
-  except botocore.errorfactory.ServiceNotFoundException as e:
+  except client.exceptions.ServiceNotFoundException as e:
     print("ignoring exception {}", e)
   container_restart_status = []
   for task in tasks['taskArns']:
