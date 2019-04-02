@@ -113,6 +113,7 @@ def container_restart_logic(app_list_dict):
     else:
       del(update_consul)
 
+#TODO: if ecr_repo and ecs_cluster don't exist don't write ecr_image_digest (conflicting w/ terraform apply)
 def update_consul_ecr_image_digest(app_list_dict, key):
   #for k,v in app_list_dict.items():
   print("[{}] updating consul ecr_image_digest".format(key))
