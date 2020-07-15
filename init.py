@@ -166,7 +166,7 @@ def main():
 if __name__ == '__main__':
   install_software()
   app_list_dict = {}
-  GLOBAL REGION
+  global REGION
   REGION = get_region_from_consul()
   #region_name = ""
   main()
