@@ -27,6 +27,12 @@ def get_deployed_apps_from_consul():
   toplevel_keys_json = json.loads(response.text)
   return toplevel_keys_json
 
+def get_region_from_consul():
+  print("getting region from consul")
+  url = 'http://consul:8500/v1/kv/ecr-repo-sync/config/REGION?raw'
+  response = requests.get(url)
+  return response.text
+
 def retrieve_app_configs_from_consul(toplevel_keys_json):
   # for each key found verify that it has a github repo AND branch configuration setting - that's how we know it's a deployed app
   local_dict = {}
@@ -78,8 +84,7 @@ def retrieve_app_configs_from_consul(toplevel_keys_json):
   return local_dict
 
 def whats_in_ecr(app_list, app_list_dict):
-  #client = boto3.client('ecr', region_name='us-west-2')
-  client = boto3.client('ecr')
+  client = boto3.client('ecr', region_name=REGION)
   for k,v in app_list_dict.items():
     print("[{}] pull imageDigest from ecr".format(k))
     try:
@@ -125,8 +130,7 @@ def update_consul_ecr_image_digest(app_list_dict, key):
 def restart_containers(something):
   print("[{}] restarting containers".format(something[4]))
   container_restart_status = []
-  #client = boto3.client('ecs', region_name='us-west-2')
-  client = boto3.client('ecs')
+  client = boto3.client('ecs', region_name=REGION)
   try:
     tasks = client.list_tasks(cluster=something[1], serviceName=something[4])
   except client.exceptions.ServiceNotFoundException as e:
@@ -162,5 +166,7 @@ def main():
 if __name__ == '__main__':
   install_software()
   app_list_dict = {}
-  region_name = ""
+  GLOBAL REGION
+  REGION = get_region_from_consul()
+  #region_name = ""
   main()
