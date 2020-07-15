@@ -78,7 +78,8 @@ def retrieve_app_configs_from_consul(toplevel_keys_json):
   return local_dict
 
 def whats_in_ecr(app_list, app_list_dict):
-  client = boto3.client('ecr', region_name='us-west-2')
+  #client = boto3.client('ecr', region_name='us-west-2')
+  client = boto3.client('ecr')
   for k,v in app_list_dict.items():
     print("[{}] pull imageDigest from ecr".format(k))
     try:
@@ -124,7 +125,8 @@ def update_consul_ecr_image_digest(app_list_dict, key):
 def restart_containers(something):
   print("[{}] restarting containers".format(something[4]))
   container_restart_status = []
-  client = boto3.client('ecs', region_name='us-west-2')
+  #client = boto3.client('ecs', region_name='us-west-2')
+  client = boto3.client('ecs')
   try:
     tasks = client.list_tasks(cluster=something[1], serviceName=something[4])
   except client.exceptions.ServiceNotFoundException as e:
