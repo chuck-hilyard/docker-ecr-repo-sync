@@ -108,11 +108,13 @@ def container_restart_logic(app_list_dict):
     if app_list_dict[k][5] != app_list_dict[k][6]:
       print("[{}] aws ecr_image_digest differs from consul's ecr_image_digest".format(k))
       container_restart_status = restart_containers(app_list_dict[k])
-      update_consul = True
+      #update_consul = True
       for status in container_restart_status:
         if status != 200:
           print("[{}] one container didn't properly restart, not updating consul".format(k))
           update_consul = False
+        else:
+          update_consul = True
     if update_consul == True:
       update_consul_ecr_image_digest(app_list_dict, k)
       del(update_consul)
